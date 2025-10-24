@@ -61,7 +61,7 @@ export function ComingSoonPage() {
               Quer ser notificado quando lançarmos?
             </p>
             <a
-              href="/"
+              href="/#newsletter"
               className="inline-block bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               📧 Inscreva-se na Newsletter

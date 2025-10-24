@@ -413,7 +413,7 @@ export function LandingPage() {
       </section>
 
       {/* Newsletter Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-600 to-purple-600 text-white">
+      <section id="newsletter" className="py-20 bg-gradient-to-br from-blue-600 to-purple-600 text-white">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8">
             <h2 className="text-3xl lg:text-4xl mb-4">
