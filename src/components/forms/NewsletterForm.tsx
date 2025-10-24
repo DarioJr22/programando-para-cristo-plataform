@@ -9,7 +9,6 @@ export function NewsletterForm({ origin }: NewsletterFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
     optInWhatsApp: false,
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -97,18 +96,6 @@ export function NewsletterForm({ origin }: NewsletterFormProps) {
           placeholder="seu@email.com"
           value={formData.email}
           onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-          required
-          disabled={isLoading}
-          className="w-full px-6 py-4 border-2 border-white/20 bg-white/10 backdrop-blur-sm rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50"
-        />
-      </div>
-
-            <div>
-        <input
-          type="text"
-          placeholder="Seu número"
-          value={formData.phone}
-          onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
           required
           disabled={isLoading}
           className="w-full px-6 py-4 border-2 border-white/20 bg-white/10 backdrop-blur-sm rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50"
