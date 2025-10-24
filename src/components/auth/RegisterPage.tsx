@@ -4,11 +4,20 @@ import { User, Mail, Lock, AlertCircle, CheckCircle, Loader } from 'lucide-react
 
 export function RegisterPage() {
   const { signup } = useAuth();
+  
+  // Check if registering with specific role (via URL param)
+  const urlParams = new URLSearchParams(window.location.search);
+  const roleParam = urlParams.get('role');
+  const allowedRoles = ['student', 'teacher', 'admin'];
+  const defaultRole = allowedRoles.includes(roleParam || '') ? roleParam : 'student';
+  
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
+    role: defaultRole || 'student',
+    secretCode: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -49,7 +58,7 @@ export function RegisterPage() {
 
     setIsLoading(true);
 
-    const result = await signup(formData.name, formData.email, formData.password);
+    const result = await signup(formData.name, formData.email, formData.password, formData.role, formData.secretCode);
 
     if (result.success) {
       setSuccess(true);
@@ -183,6 +192,52 @@ export function RegisterPage() {
                 Mínimo 8 caracteres com maiúscula, minúscula e número
               </p>
             </div>
+
+            <div>
+              <label htmlFor="role" className="block text-sm text-gray-700 mb-2">
+                Tipo de Conta
+              </label>
+              <select
+                id="role"
+                value={formData.role}
+                onChange={(e) => setFormData((prev) => ({ ...prev, role: e.target.value }))}
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                <option value="student">Aluno</option>
+                <option value="teacher">Professor</option>
+                <option value="admin">Administrador</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                {formData.role === 'student' && 'Acesso a artigos, desafios e dashboard de progresso'}
+                {formData.role === 'teacher' && 'Pode publicar artigos e criar desafios (requer código secreto)'}
+                {formData.role === 'admin' && 'Acesso completo a todas as funcionalidades (requer código secreto)'}
+              </p>
+            </div>
+
+            {(formData.role === 'teacher' || formData.role === 'admin') && (
+              <div>
+                <label htmlFor="secretCode" className="block text-sm text-gray-700 mb-2">
+                  Código Secreto
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    id="secretCode"
+                    type="text"
+                    placeholder="Código para professor/admin"
+                    value={formData.secretCode}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, secretCode: e.target.value }))}
+                    required
+                    disabled={isLoading}
+                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Entre em contato com a administração para obter o código
+                </p>
+              </div>
+            )}
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm text-gray-700 mb-2">

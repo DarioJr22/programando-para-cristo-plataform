@@ -1,19 +1,25 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase, fetchAPI } from './supabase';
 
 interface User {
   id: string;
   name: string;
   email: string;
-  role: 'student' | 'admin';
+  role: 'student' | 'teacher' | 'admin';
   avatar: string | null;
+  level?: string;
+  points?: number;
+  rank?: string;
+  username?: string;
+  bio?: string;
+  createdAt?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (name: string, email: string, password: string, role?: string, secretCode?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -23,6 +29,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const fetchingUser = useRef(false);
 
   useEffect(() => {
     // Check for existing session
@@ -30,9 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        await fetchUser();
-      } else if (event === 'SIGNED_OUT') {
+      if (event === 'SIGNED_OUT') {
         setUser(null);
       }
     });
@@ -46,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        await fetchUser();
+        await fetchUser(session.access_token);
       }
     } catch (error) {
       console.error('Error checking user:', error);
@@ -55,57 +60,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function fetchUser() {
+  async function fetchUser(accessToken?: string) {
+    if (fetchingUser.current) return;
+    
     try {
-      const response = await fetchAPI('/auth/me');
+      fetchingUser.current = true;
+      const token = accessToken || (await supabase.auth.getSession()).data.session?.access_token;
+      
+      if (!token) return;
+
+      // Import projectId from info
+      const { projectId } = await import('../utils/supabase/info');
+      
+      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-fe860986/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
       }
     } catch (error) {
       console.error('Error fetching user:', error);
+    } finally {
+      fetchingUser.current = false;
     }
   }
 
   async function login(email: string, password: string) {
     try {
-      console.log('🟡 auth-context: Iniciando login...', { email });
-      const response = await fetchAPI('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      console.log('🟡 auth-context: Resposta recebida', { status: response.status, ok: response.ok });
-      const data = await response.json();
-      console.log('🟡 auth-context: Dados da resposta:', data);
-
-      if (!response.ok) {
-        console.log('🟡 auth-context: Login falhou no servidor');
-        return { success: false, error: data.error };
+      if (error) {
+        return { success: false, error: 'Email ou senha incorretos' };
       }
 
-      console.log('🟡 auth-context: Configurando sessão...');
-      // Set session with Supabase
-      await supabase.auth.setSession({
-        access_token: data.accessToken,
-        refresh_token: data.accessToken, // Using same token as refresh
-      });
+      if (data.session) {
+        await fetchUser(data.session.access_token);
+        return { success: true };
+      }
 
-      console.log('🟡 auth-context: Salvando usuário...');
-      setUser(data.user);
-      console.log('🟡 auth-context: Login completo!');
-      return { success: true };
+      return { success: false, error: 'Erro ao fazer login' };
     } catch (error) {
-      console.error('🟡 auth-context: Erro capturado:', error);
+      console.error('Login error:', error);
       return { success: false, error: 'Erro ao fazer login' };
     }
   }
 
-  async function signup(name: string, email: string, password: string) {
+  async function signup(name: string, email: string, password: string, role: string = 'student', secretCode?: string) {
     try {
       const response = await fetchAPI('/auth/signup', {
         method: 'POST',
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, role, secretCode }),
       });
 
       const data = await response.json();
@@ -116,6 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { success: true };
     } catch (error) {
+      console.error('Signup error:', error);
       return { success: false, error: 'Erro ao criar conta' };
     }
   }

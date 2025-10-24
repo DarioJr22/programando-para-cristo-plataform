@@ -55,9 +55,15 @@ export function Header() {
                   {user.role === 'admin' ? 'Admin' : 'Dashboard'}
                 </a>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm">{user.name.charAt(0).toUpperCase()}</span>
-                  </div>
+                  <a
+                    href="/perfil"
+                    className="flex items-center gap-2"
+                    title="Meu Perfil"
+                  >
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center hover:ring-2 hover:ring-blue-400 transition-all">
+                      <span className="text-white text-sm">{user.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                  </a>
                   <button
                     onClick={() => logout()}
                     className="text-gray-700 hover:text-red-600 transition-colors"
@@ -118,6 +124,13 @@ export function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {user.role === 'admin' ? '👨‍💼 Admin' : '📊 Dashboard'}
+                </a>
+                <a
+                  href="/perfil"
+                  className="block text-gray-700 hover:text-blue-600 transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  👤 Meu Perfil
                 </a>
                 <button
                   onClick={() => {

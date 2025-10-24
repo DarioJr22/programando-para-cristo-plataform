@@ -13,31 +13,22 @@ export function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    console.log('🔵 Formulário submetido');
     setError('');
     setIsLoading(true);
 
     try {
-      console.log('🔵 Chamando função login...', { email: formData.email });
       const result = await login(formData.email, formData.password);
-      console.log('🔵 Resultado do login:', result);
 
       if (result.success) {
-        console.log('✅ Login bem-sucedido! Redirecionando...');
         // Get redirect URL from query params
         const urlParams = new URLSearchParams(window.location.search);
         const redirect = urlParams.get('redirect') || '/dashboard';
-        
-        // Use pushState for SPA navigation
-        window.history.pushState({}, '', redirect);
-        window.dispatchEvent(new PopStateEvent('popstate'));
+        window.location.href = redirect;
       } else {
-        console.log('❌ Erro no login:', result.error);
         setError(result.error || 'Erro ao fazer login');
         setIsLoading(false);
       }
     } catch (error) {
-      console.error('❌ Exceção no login:', error);
       setError('Erro ao fazer login. Tente novamente.');
       setIsLoading(false);
     }

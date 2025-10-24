@@ -41,10 +41,22 @@ const generateToken = () => {
 // AUTH ROUTES
 // ============================================
 
+// Helper: Calculate level and rank based on points
+const calculateLevelAndRank = (points: number) => {
+  let rank = 'Madeira';
+  if (points >= 10000) rank = 'Diamante';
+  else if (points >= 5000) rank = 'Ouro';
+  else if (points >= 2000) rank = 'Prata';
+  else if (points >= 500) rank = 'Bronze';
+
+  const level = Math.floor(points / 100) + 1;
+  return { rank, level };
+};
+
 // Signup
 app.post('/make-server-fe860986/auth/signup', async (c) => {
   try {
-    const { name, email, password } = await c.req.json();
+    const { name, email, password, role = 'student', secretCode } = await c.req.json();
 
     // Validate
     if (!name || !email || !password) {
@@ -53,6 +65,17 @@ app.post('/make-server-fe860986/auth/signup', async (c) => {
 
     if (password.length < 8) {
       return c.json({ error: 'Senha deve ter no mínimo 8 caracteres' }, 400);
+    }
+
+    // Validate role
+    if (!['student', 'teacher', 'admin'].includes(role)) {
+      return c.json({ error: 'Role inválido' }, 400);
+    }
+
+    // Secret code validation for teacher/admin
+    const SECRET_CODE = 'ישוע המשיח הוא אדון';
+    if ((role === 'teacher' || role === 'admin') && secretCode !== SECRET_CODE) {
+      return c.json({ error: 'Código secreto inválido para este tipo de conta' }, 403);
     }
 
     // Check if email already exists
@@ -66,7 +89,7 @@ app.post('/make-server-fe860986/auth/signup', async (c) => {
       email,
       password,
       email_confirm: true, // Auto-confirm since email server not configured
-      user_metadata: { name }
+      user_metadata: { name, role }
     });
 
     if (error) {
@@ -82,12 +105,25 @@ app.post('/make-server-fe860986/auth/signup', async (c) => {
       id: userId,
       email,
       name,
-      role: 'student',
+      role: role,
       status: 'active',
       emailVerified: true,
       avatar: null,
       bio: null,
       username: null,
+      gamification: {
+        points: 0,
+        level: 1,
+        rank: 'Madeira',
+        completedChallenges: 0,
+        articlesPublished: 0,
+        articlesRead: 0,
+        commentsApproved: 0,
+        likesReceived: 0,
+        streak: 0,
+        lastActivityDate: now,
+        achievements: []
+      },
       studentData: {
         level: 'iniciante',
         completedChallenges: 0,
@@ -189,7 +225,19 @@ app.get('/make-server-fe860986/auth/me', async (c) => {
       return c.json({ error: 'Usuário não encontrado' }, 404);
     }
 
-    return c.json({ user: userData });
+    // Return simplified user data for frontend
+    return c.json({ 
+      user: {
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+        avatar: userData.avatar,
+        level: userData.gamification?.level || 1,
+        points: userData.gamification?.points || 0,
+        rank: userData.gamification?.rank || 'Madeira'
+      }
+    });
   } catch (error) {
     console.log('Get me error:', error);
     return c.json({ error: 'Erro interno do servidor' }, 500);
@@ -284,7 +332,7 @@ app.get('/make-server-fe860986/articles/:slug', async (c) => {
   }
 });
 
-// Create article (admin only)
+// Create article (teacher and admin can publish, students can create drafts)
 app.post('/make-server-fe860986/articles', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
@@ -298,28 +346,44 @@ app.post('/make-server-fe860986/articles', async (c) => {
     }
 
     const userData = await kv.get(`users:${user.id}`);
-    if (userData.role !== 'admin') {
-      return c.json({ error: 'Sem permissão' }, 403);
-    }
-
+    
     const articleData = await c.req.json();
     const articleId = generateId();
     const now = new Date().toISOString();
 
+    // Students can only create drafts
+    let status = articleData.status;
+    if (userData.role === 'student') {
+      status = 'draft';
+    }
+
     const article = {
       id: articleId,
       ...articleData,
+      status,
+      authorId: user.id,
+      authorName: userData.name,
       views: 0,
       likes: 0,
       commentsCount: 0,
       sharesCount: 0,
       createdAt: now,
       updatedAt: now,
-      publishedAt: articleData.status === 'published' ? now : null
+      publishedAt: status === 'published' ? now : null
     };
 
     await kv.set(`articles:${articleId}`, article);
     await kv.set(`article-slug:${article.slug}`, articleId);
+
+    // Award points for publishing article (teachers and admins only)
+    if (status === 'published' && (userData.role === 'teacher' || userData.role === 'admin')) {
+      userData.gamification.points += 100;
+      userData.gamification.articlesPublished += 1;
+      const { rank, level } = calculateLevelAndRank(userData.gamification.points);
+      userData.gamification.rank = rank;
+      userData.gamification.level = level;
+      await kv.set(`users:${user.id}`, userData);
+    }
 
     return c.json({ success: true, article });
   } catch (error) {
@@ -328,7 +392,7 @@ app.post('/make-server-fe860986/articles', async (c) => {
   }
 });
 
-// Update article (admin only)
+// Update article (admin, teacher can edit own, student can edit own drafts)
 app.put('/make-server-fe860986/articles/:id', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
@@ -342,10 +406,6 @@ app.put('/make-server-fe860986/articles/:id', async (c) => {
     }
 
     const userData = await kv.get(`users:${user.id}`);
-    if (userData.role !== 'admin') {
-      return c.json({ error: 'Sem permissão' }, 403);
-    }
-
     const articleId = c.param('id');
     const article = await kv.get(`articles:${articleId}`);
     
@@ -353,7 +413,21 @@ app.put('/make-server-fe860986/articles/:id', async (c) => {
       return c.json({ error: 'Artigo não encontrado' }, 404);
     }
 
+    // Check permissions
+    const isAdmin = userData.role === 'admin';
+    const isOwner = article.authorId === user.id;
+    
+    if (!isAdmin && !isOwner) {
+      return c.json({ error: 'Sem permissão' }, 403);
+    }
+
     const updates = await c.req.json();
+    
+    // Students can't publish directly
+    if (userData.role === 'student' && updates.status === 'published') {
+      updates.status = 'draft';
+    }
+
     const updatedArticle = {
       ...article,
       ...updates,
@@ -487,7 +561,7 @@ app.get('/make-server-fe860986/challenges/:id', async (c) => {
   }
 });
 
-// Create challenge (admin only)
+// Create challenge (teacher and admin can create)
 app.post('/make-server-fe860986/challenges', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
@@ -501,7 +575,7 @@ app.post('/make-server-fe860986/challenges', async (c) => {
     }
 
     const userData = await kv.get(`users:${user.id}`);
-    if (userData.role !== 'admin') {
+    if (userData.role !== 'admin' && userData.role !== 'teacher') {
       return c.json({ error: 'Sem permissão' }, 403);
     }
 
@@ -512,6 +586,8 @@ app.post('/make-server-fe860986/challenges', async (c) => {
     const challenge = {
       id: challengeId,
       ...challengeData,
+      authorId: user.id,
+      authorName: userData.name,
       views: 0,
       likes: 0,
       commentsCount: 0,
@@ -523,6 +599,15 @@ app.post('/make-server-fe860986/challenges', async (c) => {
     };
 
     await kv.set(`challenges:${challengeId}`, challenge);
+
+    // Award points for creating challenge
+    if (challengeData.status === 'published') {
+      userData.gamification.points += 150;
+      const { rank, level } = calculateLevelAndRank(userData.gamification.points);
+      userData.gamification.rank = rank;
+      userData.gamification.level = level;
+      await kv.set(`users:${user.id}`, userData);
+    }
 
     return c.json({ success: true, challenge });
   } catch (error) {
@@ -854,12 +939,10 @@ app.post('/make-server-fe860986/newsletter/subscribe', async (c) => {
       Email: email,
       Origem: metadata.origin,
       Status: 'Novo',
-      'Data de Captação': now,
+      'date:Data de Captação:start': now.split('T')[0],
       Interesse: 'Curso',
       'Source URL': metadata.sourceUrl,
       'UTM Campaign': metadata.utmCampaign || null,
-      'UTM Source': metadata.utmSource || null,
-      'UTM Medium': metadata.utmMedium || null,
       'Opt-in Email': true,
       'Opt-in WhatsApp': optInWhatsApp || false
     };
@@ -979,6 +1062,151 @@ app.get('/make-server-fe860986/contacts', async (c) => {
 });
 
 // ============================================
+// GAMIFICATION ROUTES
+// ============================================
+
+// Submit challenge completion
+app.post('/make-server-fe860986/gamification/complete-challenge', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    if (!accessToken) {
+      return c.json({ error: 'Não autenticado' }, 401);
+    }
+
+    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    if (error || !user) {
+      return c.json({ error: 'Não autenticado' }, 401);
+    }
+
+    const { challengeId } = await c.req.json();
+    const userData = await kv.get(`users:${user.id}`);
+    const challenge = await kv.get(`challenges:${challengeId}`);
+
+    if (!challenge) {
+      return c.json({ error: 'Desafio não encontrado' }, 404);
+    }
+
+    // Check if already completed
+    const completionKey = `challenge-completion:${user.id}:${challengeId}`;
+    const existingCompletion = await kv.get(completionKey);
+    
+    if (existingCompletion) {
+      return c.json({ error: 'Desafio já completado' }, 409);
+    }
+
+    // Award points based on challenge difficulty
+    let points = 50; // base points
+    if (challenge.level === 'intermediário') points = 75;
+    if (challenge.level === 'avançado') points = 100;
+
+    userData.gamification.points += points;
+    userData.gamification.completedChallenges += 1;
+    
+    const { rank, level } = calculateLevelAndRank(userData.gamification.points);
+    userData.gamification.rank = rank;
+    userData.gamification.level = level;
+
+    // Save completion
+    await kv.set(completionKey, {
+      userId: user.id,
+      challengeId,
+      completedAt: new Date().toISOString(),
+      pointsEarned: points
+    });
+
+    await kv.set(`users:${user.id}`, userData);
+
+    return c.json({ 
+      success: true, 
+      pointsEarned: points,
+      totalPoints: userData.gamification.points,
+      newLevel: level,
+      newRank: rank
+    });
+  } catch (error) {
+    console.log('Complete challenge error:', error);
+    return c.json({ error: 'Erro ao completar desafio' }, 500);
+  }
+});
+
+// Read article (award points for reading)
+app.post('/make-server-fe860986/gamification/read-article', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    if (!accessToken) {
+      return c.json({ error: 'Não autenticado' }, 401);
+    }
+
+    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    if (error || !user) {
+      return c.json({ error: 'Não autenticado' }, 401);
+    }
+
+    const { articleId } = await c.req.json();
+    const userData = await kv.get(`users:${user.id}`);
+
+    // Check if already read
+    const readKey = `article-read:${user.id}:${articleId}`;
+    const existingRead = await kv.get(readKey);
+    
+    if (existingRead) {
+      return c.json({ alreadyRead: true });
+    }
+
+    // Award 10 points for reading
+    userData.gamification.points += 10;
+    userData.gamification.articlesRead += 1;
+    
+    const { rank, level } = calculateLevelAndRank(userData.gamification.points);
+    userData.gamification.rank = rank;
+    userData.gamification.level = level;
+
+    await kv.set(readKey, {
+      userId: user.id,
+      articleId,
+      readAt: new Date().toISOString()
+    });
+
+    await kv.set(`users:${user.id}`, userData);
+
+    return c.json({ 
+      success: true, 
+      pointsEarned: 10,
+      totalPoints: userData.gamification.points
+    });
+  } catch (error) {
+    console.log('Read article error:', error);
+    return c.json({ error: 'Erro ao registrar leitura' }, 500);
+  }
+});
+
+// Get leaderboard
+app.get('/make-server-fe860986/gamification/leaderboard', async (c) => {
+  try {
+    const limit = parseInt(c.req.query('limit') || '10');
+    const allUsers = await kv.getByPrefix('users:');
+    
+    const leaderboard = allUsers
+      .map(user => ({
+        id: user.id,
+        name: user.name,
+        avatar: user.avatar,
+        role: user.role,
+        points: user.gamification?.points || 0,
+        level: user.gamification?.level || 1,
+        rank: user.gamification?.rank || 'Madeira'
+      }))
+      .sort((a, b) => b.points - a.points)
+      .slice(0, limit);
+
+    return c.json({ leaderboard });
+  } catch (error) {
+    console.log('Get leaderboard error:', error);
+    return c.json({ error: 'Erro ao buscar ranking' }, 500);
+  }
+});
+
+// ============================================
 // DASHBOARD ROUTES
 // ============================================
 
@@ -998,7 +1226,10 @@ app.get('/make-server-fe860986/dashboard/stats', async (c) => {
     const userData = await kv.get(`users:${user.id}`);
 
     return c.json({ 
-      stats: userData.studentData 
+      stats: {
+        ...userData.studentData,
+        gamification: userData.gamification
+      }
     });
   } catch (error) {
     console.log('Get stats error:', error);
@@ -1006,7 +1237,7 @@ app.get('/make-server-fe860986/dashboard/stats', async (c) => {
   }
 });
 
-// Get admin stats
+// Get admin stats (admin only - can see everything)
 app.get('/make-server-fe860986/admin/stats', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
@@ -1027,10 +1258,16 @@ app.get('/make-server-fe860986/admin/stats', async (c) => {
     const articles = await kv.getByPrefix('articles:');
     const challenges = await kv.getByPrefix('challenges:');
     const comments = await kv.getByPrefix('comments:');
+    const users = await kv.getByPrefix('users:');
 
     const totalViews = articles.reduce((sum, a) => sum + (a.views || 0), 0);
     const totalLikes = articles.reduce((sum, a) => sum + (a.likes || 0), 0);
     const pendingComments = comments.filter(c => c.status === 'pending').length;
+
+    // User stats by role
+    const studentCount = users.filter(u => u.role === 'student').length;
+    const teacherCount = users.filter(u => u.role === 'teacher').length;
+    const adminCount = users.filter(u => u.role === 'admin').length;
 
     return c.json({ 
       stats: {
@@ -1040,12 +1277,192 @@ app.get('/make-server-fe860986/admin/stats', async (c) => {
         publishedChallenges: challenges.filter(c => c.status === 'published').length,
         totalViews,
         totalLikes,
-        pendingComments
+        pendingComments,
+        totalUsers: users.length,
+        studentCount,
+        teacherCount,
+        adminCount
       }
     });
   } catch (error) {
     console.log('Get admin stats error:', error);
     return c.json({ error: 'Erro ao buscar estatísticas' }, 500);
+  }
+});
+
+// Get all users (admin only)
+app.get('/make-server-fe860986/admin/users', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    if (!accessToken) {
+      return c.json({ error: 'Não autenticado' }, 401);
+    }
+
+    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    if (error || !user) {
+      return c.json({ error: 'Não autenticado' }, 401);
+    }
+
+    const userData = await kv.get(`users:${user.id}`);
+    if (userData.role !== 'admin') {
+      return c.json({ error: 'Sem permissão' }, 403);
+    }
+
+    const allUsers = await kv.getByPrefix('users:');
+    const users = allUsers.map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      avatar: u.avatar,
+      points: u.gamification?.points || 0,
+      level: u.gamification?.level || 1,
+      rank: u.gamification?.rank || 'Madeira',
+      createdAt: u.createdAt
+    }));
+
+    return c.json({ users });
+  } catch (error) {
+    console.log('Get users error:', error);
+    return c.json({ error: 'Erro ao buscar usuários' }, 500);
+  }
+});
+
+// ============================================
+// USER PROFILE ROUTES
+// ============================================
+
+// Get user profile
+app.get('/make-server-fe860986/profile/:userId', async (c) => {
+  try {
+    const userId = c.param('userId');
+    const userData = await kv.get(`users:${userId}`);
+    
+    if (!userData) {
+      return c.json({ error: 'Usuário não encontrado' }, 404);
+    }
+
+    // Return public profile data
+    return c.json({ 
+      profile: {
+        id: userData.id,
+        name: userData.name,
+        avatar: userData.avatar,
+        bio: userData.bio,
+        username: userData.username,
+        role: userData.role,
+        gamification: userData.gamification,
+        createdAt: userData.createdAt
+      }
+    });
+  } catch (error) {
+    console.log('Get profile error:', error);
+    return c.json({ error: 'Erro ao buscar perfil' }, 500);
+  }
+});
+
+// Update user profile (requires auth)
+app.put('/make-server-fe860986/profile', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    if (!accessToken) {
+      return c.json({ error: 'Não autenticado' }, 401);
+    }
+
+    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    if (error || !user) {
+      return c.json({ error: 'Não autenticado' }, 401);
+    }
+
+    const userData = await kv.get(`users:${user.id}`);
+    if (!userData) {
+      return c.json({ error: 'Usuário não encontrado' }, 404);
+    }
+
+    const updates = await c.req.json();
+    
+    // Only allow updating certain fields
+    const allowedFields = ['name', 'bio', 'username', 'avatar'];
+    const filteredUpdates: any = {};
+    
+    for (const field of allowedFields) {
+      if (updates[field] !== undefined) {
+        filteredUpdates[field] = updates[field];
+      }
+    }
+
+    // Validate username uniqueness if updating
+    if (filteredUpdates.username && filteredUpdates.username !== userData.username) {
+      const existingUsername = await kv.get(`username:${filteredUpdates.username}`);
+      if (existingUsername && existingUsername !== user.id) {
+        return c.json({ error: 'Nome de usuário já está em uso' }, 409);
+      }
+      
+      // Update username index
+      if (userData.username) {
+        await kv.del(`username:${userData.username}`);
+      }
+      await kv.set(`username:${filteredUpdates.username}`, user.id);
+    }
+
+    const updatedUser = {
+      ...userData,
+      ...filteredUpdates,
+      updatedAt: new Date().toISOString()
+    };
+
+    await kv.set(`users:${user.id}`, updatedUser);
+
+    return c.json({ 
+      success: true,
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        avatar: updatedUser.avatar,
+        bio: updatedUser.bio,
+        username: updatedUser.username
+      }
+    });
+  } catch (error) {
+    console.log('Update profile error:', error);
+    return c.json({ error: 'Erro ao atualizar perfil' }, 500);
+  }
+});
+
+// Upload avatar (requires auth)
+app.post('/make-server-fe860986/profile/avatar', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    if (!accessToken) {
+      return c.json({ error: 'Não autenticado' }, 401);
+    }
+
+    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    if (error || !user) {
+      return c.json({ error: 'Não autenticado' }, 401);
+    }
+
+    const { avatarUrl } = await c.req.json();
+    
+    if (!avatarUrl) {
+      return c.json({ error: 'URL do avatar é obrigatório' }, 400);
+    }
+
+    const userData = await kv.get(`users:${user.id}`);
+    userData.avatar = avatarUrl;
+    userData.updatedAt = new Date().toISOString();
+    
+    await kv.set(`users:${user.id}`, userData);
+
+    return c.json({ 
+      success: true,
+      avatarUrl
+    });
+  } catch (error) {
+    console.log('Upload avatar error:', error);
+    return c.json({ error: 'Erro ao fazer upload do avatar' }, 500);
   }
 });
 

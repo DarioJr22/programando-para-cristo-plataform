@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Heart, Share2, Clock, ChevronRight, MessageCircle, Send } from 'lucide-react';
 import { fetchAPI } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth-context';
+import { MarkdownRenderer } from '../MarkdownRenderer';
 
 export function ArticlePage({ slug }: { slug: string }) {
   const { user } = useAuth();
@@ -399,10 +400,7 @@ export function ArticlePage({ slug }: { slug: string }) {
                 </div>
 
                 {/* Article Content */}
-                <div
-                  className="prose prose-lg max-w-none"
-                  dangerouslySetInnerHTML={{ __html: renderContent(article.content) }}
-                />
+                <MarkdownRenderer content={article.content} />
 
                 {/* Verse */}
                 {article.verse && (

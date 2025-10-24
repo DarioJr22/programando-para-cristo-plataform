@@ -3,13 +3,15 @@ import { AuthProvider, useAuth } from './lib/auth-context';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { LandingPage } from './components/pages/LandingPage';
-import { ComingSoonPage } from './components/pages/ComingSoonPage';
 import { LoginPage } from './components/auth/LoginPage';
 import { RegisterPage } from './components/auth/RegisterPage';
 import { BlogPage } from './components/pages/BlogPage';
 import { ArticlePage } from './components/pages/ArticlePage';
 import { AdminPage } from './components/pages/AdminPage';
 import { ChallengesPage } from './components/pages/ChallengesPage';
+import { DashboardPage } from './components/pages/DashboardPage';
+import { ContactPage } from './components/pages/ContactPage';
+import { ProfilePage } from './components/pages/ProfilePage';
 
 // Router component
 function Router() {
@@ -44,16 +46,6 @@ function Router() {
   // Handle dynamic routes
   let matchedRoute: React.ReactNode = null;
 
-  // PÁGINA EM BREVE - Todas as rotas exceto home vão para "Coming Soon"
-  if (currentPath === '/') {
-    matchedRoute = <LandingPage />;
-  } else {
-    // Todas as outras rotas mostram "Em Breve"
-    matchedRoute = <ComingSoonPage />;
-  }
-
-  // Rotas desabilitadas temporariamente (modo "Coming Soon")
-  /*
   if (currentPath === '/') {
     matchedRoute = <LandingPage />;
   } else if (currentPath === '/login') {
@@ -68,18 +60,30 @@ function Router() {
   } else if (currentPath === '/desafios') {
     matchedRoute = <ProtectedRoute><ChallengesPage /></ProtectedRoute>;
   } else if (currentPath === '/dashboard') {
-    matchedRoute = <ProtectedRoute><DashboardPlaceholder /></ProtectedRoute>;
+    matchedRoute = <ProtectedRoute><DashboardPage /></ProtectedRoute>;
   } else if (currentPath === '/admin') {
     matchedRoute = <ProtectedRoute requireAdmin><AdminPage /></ProtectedRoute>;
   } else if (currentPath === '/contato') {
-    matchedRoute = <ContactPlaceholder />;
+    matchedRoute = <ContactPage />;
+  } else if (currentPath === '/perfil') {
+    matchedRoute = <ProtectedRoute><ProfilePage /></ProtectedRoute>;
   } else {
     matchedRoute = <NotFoundPage />;
   }
-  */
 
-  // Show pages without header/footer (Coming Soon não precisa de layout)
-  return <>{matchedRoute}</>;
+  // Show pages without header/footer
+  const pagesWithoutLayout = ['/login', '/registro'];
+  if (pagesWithoutLayout.includes(currentPath)) {
+    return <>{matchedRoute}</>;
+  }
+
+  return (
+    <>
+      <Header />
+      <main>{matchedRoute}</main>
+      <Footer />
+    </>
+  );
 }
 
 // Protected Route Component
@@ -102,7 +106,7 @@ function ProtectedRoute({ children, requireAdmin = false }: { children: React.Re
     return null;
   }
 
-  if (requireAdmin && user.role !== 'admin') {
+  if (requireAdmin && user.role !== 'admin' && user.role !== 'teacher') {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center">
@@ -121,34 +125,6 @@ function ProtectedRoute({ children, requireAdmin = false }: { children: React.Re
 }
 
 // Placeholder components (to be implemented)
-
-
-
-function DashboardPlaceholder() {
-  const { user } = useAuth();
-  return (
-    <div className="min-h-screen py-20">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl text-gray-900 mb-4">Dashboard</h1>
-        <p className="text-gray-600">Bem-vindo, {user?.name}! 👋</p>
-        <p className="text-gray-600 mt-2">Dashboard em construção...</p>
-      </div>
-    </div>
-  );
-}
-
-
-
-function ContactPlaceholder() {
-  return (
-    <div className="min-h-screen py-20">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl text-gray-900 mb-4">Contato</h1>
-        <p className="text-gray-600">Página de contato em construção... 📧</p>
-      </div>
-    </div>
-  );
-}
 
 function NotFoundPage() {
   return (

@@ -12,10 +12,7 @@ export async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const session = await supabase.auth.getSession();
   const token = session.data.session?.access_token || publicAnonKey;
 
-  const url = `${API_URL}${endpoint}`;
-  console.log('🟢 fetchAPI: Fazendo requisição', { url, method: options.method || 'GET' });
-
-  const response = await fetch(url, {
+  const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -24,6 +21,5 @@ export async function fetchAPI(endpoint: string, options: RequestInit = {}) {
     },
   });
 
-  console.log('🟢 fetchAPI: Resposta recebida', { status: response.status, statusText: response.statusText });
   return response;
 }
