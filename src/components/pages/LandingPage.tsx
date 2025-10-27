@@ -14,6 +14,35 @@ export function LandingPage() {
 
   useEffect(() => {
     loadRecentArticles();
+    
+    // Handle hash navigation with smooth scroll
+    const handleHashNavigation = () => {
+      const hash = window.location.hash;
+      if (hash) {
+        setTimeout(() => {
+          const element = document.querySelector(hash);
+          if (element) {
+            const headerOffset = 80; // Height of fixed header
+            const elementPosition = element.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+            window.scrollTo({
+              top: offsetPosition,
+              behavior: 'smooth'
+            });
+          }
+        }, 100);
+      }
+    };
+
+    handleHashNavigation();
+    
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashNavigation);
+    
+    return () => {
+      window.removeEventListener('hashchange', handleHashNavigation);
+    };
   }, []);
 
   async function loadRecentArticles() {
@@ -149,15 +178,14 @@ export function LandingPage() {
                   Quero me inscrever
                   <ArrowRight className="w-5 h-5" />
                 </a>
-                <a
+               {/*  <a
                   href="#blog"
                   className="border-2 border-white text-white px-8 py-4 rounded-lg flex items-center justify-center gap-2 hover:bg-white/10 transition-colors"
                 >
                   Explorar Conteúdo
-                </a>
+                </a> */}
               </div>
               <div className="mt-8 p-4 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
-                <p className="text-sm text-blue-100 mb-1">Versículo Inspirador</p>
                 <p className="text-lg italic">
                   "Tudo posso naquele que me fortalece"
                 </p>
@@ -242,7 +270,7 @@ export function LandingPage() {
       </section>
 
       {/* Recent Articles Section */}
-      <section id="blog" className="py-20 bg-gray-50">
+      <section id="blog" className="py-20 bg-gray-50 scroll-mt-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center mb-12">
             <div>
@@ -412,7 +440,7 @@ export function LandingPage() {
       </section> */}
 
       {/* Newsletter Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-600 to-purple-600 text-white" id='newsletter'>
+      <section className="py-20 bg-gradient-to-br from-blue-600 to-purple-600 text-white scroll-mt-20" id='newsletter'>
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8">
             <h2 className="text-3xl lg:text-4xl mb-4">
