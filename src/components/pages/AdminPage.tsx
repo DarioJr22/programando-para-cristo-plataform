@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../lib/auth-context';
 import { fetchAPI } from '../../lib/supabase';
-import { BarChart3, FileText, Target, MessageSquare, Plus, Edit, Trash2 } from 'lucide-react';
+import { BarChart3, FileText, Target, MessageSquare, Plus, Edit, Trash2, Check, X } from 'lucide-react';
+import { ArticleForm } from '../forms/ArticleForm';
+import { ChallengeForm } from '../forms/ChallengeForm';
 
 export function AdminPage() {
   const { user } = useAuth();
@@ -11,6 +13,13 @@ export function AdminPage() {
   const [pendingComments, setPendingComments] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'articles' | 'challenges' | 'comments'>('overview');
   const [loading, setLoading] = useState(true);
+  
+  // Form states
+  const [showArticleForm, setShowArticleForm] = useState(false);
+  const [showChallengeForm, setShowChallengeForm] = useState(false);
+  const [editingArticle, setEditingArticle] = useState<any>(null);
+  const [editingChallenge, setEditingChallenge] = useState<any>(null);
+  const [formLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
     loadStats();
@@ -25,9 +34,23 @@ export function AdminPage() {
       if (response.ok) {
         const data = await response.json();
         setStats(data.stats);
+      } else if (response.status === 403) {
+        console.log('Stats not available - insufficient permissions');
+        setStats({
+          totalUsers: 0,
+          totalArticles: articles.length,
+          totalChallenges: challenges.length,
+          totalComments: 0
+        });
       }
     } catch (error) {
       console.error('Error loading stats:', error);
+      setStats({
+        totalUsers: 0,
+        totalArticles: articles.length,
+        totalChallenges: challenges.length,
+        totalComments: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -63,140 +86,127 @@ export function AdminPage() {
       if (response.ok) {
         const data = await response.json();
         setPendingComments(data.comments);
+      } else if (response.status === 403) {
+        console.log('Pending comments not available - insufficient permissions');
+        setPendingComments([]);
       }
     } catch (error) {
       console.error('Error loading comments:', error);
+      setPendingComments([]);
     }
   }
 
-  async function createSampleArticle() {
-    const sampleArticle = {
-      title: 'Começando com HTML: Construindo sua Primeira Página Web',
-      slug: 'comecando-com-html',
-      excerpt: 'Aprenda os fundamentos do HTML e crie sua primeira página web do zero. Um guia completo para iniciantes absolutos.',
-      content: `## Introdução
+  // Article functions
+  const handleCreateArticle = () => {
+    setEditingArticle(null);
+    setShowArticleForm(true);
+  };
 
-HTML (HyperText Markup Language) é a linguagem de marcação que forma a estrutura de todas as páginas web. Neste tutorial, você vai aprender o básico do HTML e criar sua primeira página!
+  const handleEditArticle = (article: any) => {
+    setEditingArticle(article);
+    setShowArticleForm(true);
+  };
 
-## O que é HTML?
-
-HTML é uma linguagem de marcação que usa "tags" para estruturar o conteúdo. Cada tag tem um propósito específico.
-
-## Estrutura Básica
-
-Todo documento HTML segue esta estrutura:
-
-\`\`\`html
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Minha Primeira Página</title>
-  </head>
-  <body>
-    <h1>Olá, Mundo!</h1>
-    <p>Este é meu primeiro parágrafo.</p>
-  </body>
-</html>
-\`\`\`
-
-## Tags Principais
-
-### Headings (Títulos)
-Use \`<h1>\` até \`<h6>\` para criar títulos de diferentes níveis.
-
-### Parágrafos
-Use \`<p>\` para criar parágrafos de texto.
-
-### Links
-Use \`<a href="url">texto</a>\` para criar links.
-
-## Conclusão
-
-Parabéns! Você aprendeu os fundamentos do HTML. Continue praticando e explorando mais tags!`,
-      coverImage: 'https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=800',
-      category: 'aulas',
-      tags: ['HTML', 'Web Development', 'Iniciante'],
-      level: 'iniciante',
-      author: {
-        name: user?.name || 'Admin',
-        avatar: null,
-        bio: 'Instrutor e desenvolvedor apaixonado por ensinar'
-      },
-      verse: {
-        text: 'Tudo quanto te vier à mão para fazer, faze-o conforme as tuas forças.',
-        reference: 'Eclesiastes 9:10a'
-      },
-      readTime: 8,
-      status: 'published',
-    };
-
+  const handleSaveArticle = async (articleData: any) => {
+    setFormLoading(true);
     try {
-      const response = await fetchAPI('/articles', {
-        method: 'POST',
-        body: JSON.stringify(sampleArticle),
+      const url = editingArticle ? `/articles/${editingArticle.id}` : '/articles';
+      const method = editingArticle ? 'PUT' : 'POST';
+      
+      const response = await fetchAPI(url, {
+        method,
+        body: JSON.stringify(articleData),
       });
 
       if (response.ok) {
-        alert('Artigo de exemplo criado com sucesso!');
+        setShowArticleForm(false);
+        setEditingArticle(null);
         loadArticles();
         loadStats();
+        alert(editingArticle ? 'Artigo atualizado com sucesso!' : 'Artigo criado com sucesso!');
       } else {
         const data = await response.json();
-        alert('Erro ao criar artigo: ' + data.error);
+        alert('Erro: ' + data.error);
       }
     } catch (error) {
-      console.error('Error creating article:', error);
-      alert('Erro ao criar artigo');
+      console.error('Error saving article:', error);
+      alert('Erro ao salvar artigo');
+    } finally {
+      setFormLoading(false);
     }
-  }
+  };
 
-  async function createSampleChallenge() {
-    const sampleChallenge = {
-      title: 'Landing Page Responsiva',
-      slug: 'landing-page-responsiva',
-      description: 'Crie uma landing page moderna e responsiva usando HTML e CSS. Pratique flexbox, grid e design responsivo.',
-      level: 'basico',
-      technologies: ['HTML', 'CSS', 'Responsive Design'],
-      demoUrl: 'https://example.com/demo',
-      githubUrl: 'https://github.com/example/landing-page',
-      thumbnail: 'https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=800',
-      thumbnailGenerated: false,
-      learningGoals: [
-        'Estruturação semântica com HTML5',
-        'Estilização avançada com CSS3',
-        'Layout responsivo com Flexbox e Grid',
-        'Boas práticas de design'
-      ],
-      concepts: [
-        'HTML5 Semantic Tags',
-        'CSS Flexbox',
-        'CSS Grid',
-        'Media Queries',
-        'Mobile-first Design'
-      ],
-      estimatedTime: '3-4 horas',
-      status: 'published',
-    };
+  const handleCancelArticleForm = () => {
+    setShowArticleForm(false);
+    setEditingArticle(null);
+  };
 
+  // Challenge functions
+  const handleCreateChallenge = () => {
+    setEditingChallenge(null);
+    setShowChallengeForm(true);
+  };
+
+  const handleEditChallenge = (challenge: any) => {
+    setEditingChallenge(challenge);
+    setShowChallengeForm(true);
+  };
+
+  const handleSaveChallenge = async (challengeData: any) => {
+    setFormLoading(true);
     try {
-      const response = await fetchAPI('/challenges', {
-        method: 'POST',
-        body: JSON.stringify(sampleChallenge),
+      const url = editingChallenge ? `/challenges/${editingChallenge.id}` : '/challenges';
+      const method = editingChallenge ? 'PUT' : 'POST';
+      
+      const response = await fetchAPI(url, {
+        method,
+        body: JSON.stringify(challengeData),
       });
 
       if (response.ok) {
-        alert('Desafio de exemplo criado com sucesso!');
+        setShowChallengeForm(false);
+        setEditingChallenge(null);
         loadChallenges();
         loadStats();
+        alert(editingChallenge ? 'Desafio atualizado com sucesso!' : 'Desafio criado com sucesso!');
       } else {
         const data = await response.json();
-        alert('Erro ao criar desafio: ' + data.error);
+        alert('Erro: ' + data.error);
       }
     } catch (error) {
-      console.error('Error creating challenge:', error);
-      alert('Erro ao criar desafio');
+      console.error('Error saving challenge:', error);
+      alert('Erro ao salvar desafio');
+    } finally {
+      setFormLoading(false);
     }
-  }
+  };
+
+  const handleCancelChallengeForm = () => {
+    setShowChallengeForm(false);
+    setEditingChallenge(null);
+  };
+
+  // Comment moderation functions
+  const handleModerateComment = async (comment: any, action: 'approve' | 'reject') => {
+    try {
+      const response = await fetchAPI(`/comments/${comment.contentType}/${comment.contentId}/${comment.id}/moderate`, {
+        method: 'PUT',
+        body: JSON.stringify({ action }),
+      });
+
+      if (response.ok) {
+        loadPendingComments();
+        loadStats();
+        alert(`Comentário ${action === 'approve' ? 'aprovado' : 'rejeitado'} com sucesso!`);
+      } else {
+        const data = await response.json();
+        alert('Erro: ' + data.error);
+      }
+    } catch (error) {
+      console.error('Error moderating comment:', error);
+      alert('Erro ao moderar comentário');
+    }
+  };
 
   async function deleteArticle(id: string) {
     if (!confirm('Tem certeza que deseja deletar este artigo?')) {
@@ -396,18 +406,18 @@ Parabéns! Você aprendeu os fundamentos do HTML. Continue praticando e exploran
                   <h3 className="text-lg text-gray-900 mb-4">Ações Rápidas</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <button
-                      onClick={createSampleArticle}
+                      onClick={handleCreateArticle}
                       className="flex items-center gap-3 p-4 border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
                     >
                       <Plus className="w-5 h-5" />
-                      Criar Artigo de Exemplo
+                      Criar Novo Artigo
                     </button>
                     <button
-                      onClick={createSampleChallenge}
+                      onClick={handleCreateChallenge}
                       className="flex items-center gap-3 p-4 border-2 border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors"
                     >
                       <Plus className="w-5 h-5" />
-                      Criar Desafio de Exemplo
+                      Criar Novo Desafio
                     </button>
                   </div>
                 </div>
@@ -430,7 +440,7 @@ Parabéns! Você aprendeu os fundamentos do HTML. Continue praticando e exploran
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-lg text-gray-900">Gerenciar Artigos</h3>
                   <button
-                    onClick={createSampleArticle}
+                    onClick={handleCreateArticle}
                     className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     <Plus className="w-4 h-4" />
@@ -456,13 +466,13 @@ Parabéns! Você aprendeu os fundamentos do HTML. Continue praticando e exploran
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <a
-                            href={`/artigo/${article.slug}`}
+                          <button
+                            onClick={() => handleEditArticle(article)}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Ver artigo"
+                            title="Editar artigo"
                           >
                             <Edit className="w-4 h-4" />
-                          </a>
+                          </button>
                           <button
                             onClick={() => deleteArticle(article.id)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -489,7 +499,7 @@ Parabéns! Você aprendeu os fundamentos do HTML. Continue praticando e exploran
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-lg text-gray-900">Gerenciar Desafios</h3>
                   <button
-                    onClick={createSampleChallenge}
+                    onClick={handleCreateChallenge}
                     className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
                   >
                     <Plus className="w-4 h-4" />
@@ -515,6 +525,13 @@ Parabéns! Você aprendeu os fundamentos do HTML. Continue praticando e exploran
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleEditChallenge(challenge)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Editar desafio"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => deleteChallenge(challenge.id)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -584,6 +601,86 @@ Parabéns! Você aprendeu os fundamentos do HTML. Continue praticando e exploran
           </div>
         </div>
       </div>
+
+      {/* Article Form Modal */}
+      {showArticleForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[100]" onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            setShowArticleForm(false);
+            setEditingArticle(null);
+          }
+        }}>
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {editingArticle ? 'Editar Artigo' : 'Criar Novo Artigo'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowArticleForm(false);
+                    setEditingArticle(null);
+                  }}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <ArticleForm
+                article={editingArticle}
+                onSave={handleSaveArticle}
+                onCancel={() => {
+                  setShowArticleForm(false);
+                  setEditingArticle(null);
+                }}
+                isLoading={formLoading}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Challenge Form Modal */}
+      {showChallengeForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[100]" onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            setShowChallengeForm(false);
+            setEditingChallenge(null);
+          }
+        }}>
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {editingChallenge ? 'Editar Desafio' : 'Criar Novo Desafio'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowChallengeForm(false);
+                    setEditingChallenge(null);
+                  }}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <ChallengeForm
+                challenge={editingChallenge}
+                onSave={handleSaveChallenge}
+                onCancel={() => {
+                  setShowChallengeForm(false);
+                  setEditingChallenge(null);
+                }}
+                isLoading={formLoading}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,10 +7,10 @@ export function Header() {
   const { user, logout } = useAuth();
 
   const navigation = [
-    { name: 'Início', href: '/' },
-    { name: 'Blog', href: '/blog' },
-    { name: 'Desafios', href: '/desafios' },
-    { name: 'Contato', href: '/contato' },
+    { name: 'Início', href: '/', emoji: '🏠' },
+    { name: 'Blog', href: '/blog', emoji: '📝' },
+    { name: 'Desafios', href: '/desafios', emoji: '🎯' },
+    { name: 'Contato', href: '/contato', emoji: '📧' },
   ];
 
   return (
@@ -35,24 +35,30 @@ export function Header() {
               <a
                 key={item.name}
                 href={item.href}
-                className="text-gray-700 hover:text-blue-600 transition-colors"
+                className="text-gray-700 hover:text-blue-600 transition-colors flex items-center gap-2"
               >
+                <span>{item.emoji}</span>
                 {item.name}
               </a>
             ))}
 
             {user ? (
               <div className="flex items-center gap-4">
+                {(user.role === 'admin' || user.role === 'teacher') && (
+                  <a
+                    href="/admin"
+                    className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors"
+                  >
+                    <Shield className="w-4 h-4" />
+                    {user.role === 'admin' ? 'Admin' : 'Painel'}
+                  </a>
+                )}
                 <a
-                  href={user.role === 'admin' ? '/admin' : '/dashboard'}
+                  href="/dashboard"
                   className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors"
                 >
-                  {user.role === 'admin' ? (
-                    <Shield className="w-4 h-4" />
-                  ) : (
-                    <LayoutDashboard className="w-4 h-4" />
-                  )}
-                  {user.role === 'admin' ? 'Admin' : 'Dashboard'}
+                  <LayoutDashboard className="w-4 h-4" />
+                  Dashboard
                 </a>
                 <div className="flex items-center gap-3">
                   <a
@@ -110,20 +116,30 @@ export function Header() {
               <a
                 key={item.name}
                 href={item.href}
-                className="block text-gray-700 hover:text-blue-600 transition-colors"
+                className="block text-gray-700 hover:text-blue-600 transition-colors flex items-center gap-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
+                <span>{item.emoji}</span>
                 {item.name}
               </a>
             ))}
             {user ? (
               <>
+                {(user.role === 'admin' || user.role === 'teacher') && (
+                  <a
+                    href="/admin"
+                    className="block text-gray-700 hover:text-blue-600 transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {user.role === 'admin' ? '👨‍💼 Admin' : '🎓 Painel Professor'}
+                  </a>
+                )}
                 <a
-                  href={user.role === 'admin' ? '/admin' : '/dashboard'}
+                  href="/dashboard"
                   className="block text-gray-700 hover:text-blue-600 transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  {user.role === 'admin' ? '👨‍💼 Admin' : '📊 Dashboard'}
+                  📊 Dashboard
                 </a>
                 <a
                   href="/perfil"

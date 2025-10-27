@@ -54,7 +54,7 @@ const calculateLevelAndRank = (points: number) => {
 };
 
 // Signup
-app.post('/make-server-fe860986/auth/signup', async (c) => {
+app.post('/auth/signup', async (c) => {
   try {
     const { name, email, password, role = 'student', secretCode } = await c.req.json();
 
@@ -158,7 +158,7 @@ app.post('/make-server-fe860986/auth/signup', async (c) => {
 });
 
 // Login
-app.post('/make-server-fe860986/auth/login', async (c) => {
+app.post('/auth/login', async (c) => {
   try {
     const { email, password } = await c.req.json();
 
@@ -208,7 +208,7 @@ app.post('/make-server-fe860986/auth/login', async (c) => {
 });
 
 // Get current user
-app.get('/make-server-fe860986/auth/me', async (c) => {
+app.get('/auth/me', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -249,7 +249,7 @@ app.get('/make-server-fe860986/auth/me', async (c) => {
 // ============================================
 
 // Get all articles (public)
-app.get('/make-server-fe860986/articles', async (c) => {
+app.get('/articles', async (c) => {
   try {
     const category = c.req.query('category');
     const level = c.req.query('level');
@@ -305,7 +305,7 @@ app.get('/make-server-fe860986/articles', async (c) => {
 });
 
 // Get single article by slug (public)
-app.get('/make-server-fe860986/articles/:slug', async (c) => {
+app.get('/articles/:slug', async (c) => {
   try {
     const slug = c.param('slug');
     
@@ -333,7 +333,7 @@ app.get('/make-server-fe860986/articles/:slug', async (c) => {
 });
 
 // Create article (teacher and admin can publish, students can create drafts)
-app.post('/make-server-fe860986/articles', async (c) => {
+app.post('/articles', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -393,7 +393,7 @@ app.post('/make-server-fe860986/articles', async (c) => {
 });
 
 // Update article (admin, teacher can edit own, student can edit own drafts)
-app.put('/make-server-fe860986/articles/:id', async (c) => {
+app.put('/articles/:id', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -450,7 +450,7 @@ app.put('/make-server-fe860986/articles/:id', async (c) => {
 });
 
 // Delete article (admin only)
-app.delete('/make-server-fe860986/articles/:id', async (c) => {
+app.delete('/articles/:id', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -489,7 +489,7 @@ app.delete('/make-server-fe860986/articles/:id', async (c) => {
 // ============================================
 
 // Get all challenges (requires auth)
-app.get('/make-server-fe860986/challenges', async (c) => {
+app.get('/challenges', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -531,7 +531,7 @@ app.get('/make-server-fe860986/challenges', async (c) => {
 });
 
 // Get single challenge (requires auth)
-app.get('/make-server-fe860986/challenges/:id', async (c) => {
+app.get('/challenges/:id', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -562,7 +562,7 @@ app.get('/make-server-fe860986/challenges/:id', async (c) => {
 });
 
 // Create challenge (teacher and admin can create)
-app.post('/make-server-fe860986/challenges', async (c) => {
+app.post('/challenges', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -617,7 +617,7 @@ app.post('/make-server-fe860986/challenges', async (c) => {
 });
 
 // Update challenge (admin only)
-app.put('/make-server-fe860986/challenges/:id', async (c) => {
+app.put('/challenges/:id', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -658,7 +658,7 @@ app.put('/make-server-fe860986/challenges/:id', async (c) => {
 });
 
 // Delete challenge (admin only)
-app.delete('/make-server-fe860986/challenges/:id', async (c) => {
+app.delete('/challenges/:id', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -690,7 +690,7 @@ app.delete('/make-server-fe860986/challenges/:id', async (c) => {
 // ============================================
 
 // Toggle like (requires auth)
-app.post('/make-server-fe860986/likes/toggle', async (c) => {
+app.post('/likes/toggle', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -739,7 +739,7 @@ app.post('/make-server-fe860986/likes/toggle', async (c) => {
 });
 
 // Check if user liked content
-app.get('/make-server-fe860986/likes/check', async (c) => {
+app.get('/likes/check', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -767,7 +767,7 @@ app.get('/make-server-fe860986/likes/check', async (c) => {
 // ============================================
 
 // Get comments for content (public)
-app.get('/make-server-fe860986/comments/:contentType/:contentId', async (c) => {
+app.get('/comments/:contentType/:contentId', async (c) => {
   try {
     const contentType = c.param('contentType');
     const contentId = c.param('contentId');
@@ -785,7 +785,7 @@ app.get('/make-server-fe860986/comments/:contentType/:contentId', async (c) => {
 });
 
 // Create comment (requires auth)
-app.post('/make-server-fe860986/comments', async (c) => {
+app.post('/comments', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -840,7 +840,7 @@ app.post('/make-server-fe860986/comments', async (c) => {
 });
 
 // Get all pending comments (admin only)
-app.get('/make-server-fe860986/comments/pending', async (c) => {
+app.get('/comments/pending', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -870,7 +870,7 @@ app.get('/make-server-fe860986/comments/pending', async (c) => {
 });
 
 // Moderate comment (admin only)
-app.put('/make-server-fe860986/comments/:contentType/:contentId/:commentId/moderate', async (c) => {
+app.put('/comments/:contentType/:contentId/:commentId/moderate', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -917,7 +917,7 @@ app.put('/make-server-fe860986/comments/:contentType/:contentId/:commentId/moder
 // ============================================
 
 // Subscribe to newsletter
-app.post('/make-server-fe860986/newsletter/subscribe', async (c) => {
+app.post('/newsletter/subscribe', async (c) => {
   try {
     const { name, email, optInWhatsApp, metadata } = await c.req.json();
 
@@ -995,7 +995,7 @@ app.post('/make-server-fe860986/newsletter/subscribe', async (c) => {
 // ============================================
 
 // Submit contact form
-app.post('/make-server-fe860986/contact', async (c) => {
+app.post('/contact', async (c) => {
   try {
     const { name, email, whatsapp, subject, message } = await c.req.json();
 
@@ -1032,7 +1032,7 @@ app.post('/make-server-fe860986/contact', async (c) => {
 });
 
 // Get all contacts (admin only)
-app.get('/make-server-fe860986/contacts', async (c) => {
+app.get('/contacts', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -1066,7 +1066,7 @@ app.get('/make-server-fe860986/contacts', async (c) => {
 // ============================================
 
 // Submit challenge completion
-app.post('/make-server-fe860986/gamification/complete-challenge', async (c) => {
+app.post('/gamification/complete-challenge', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -1130,7 +1130,7 @@ app.post('/make-server-fe860986/gamification/complete-challenge', async (c) => {
 });
 
 // Read article (award points for reading)
-app.post('/make-server-fe860986/gamification/read-article', async (c) => {
+app.post('/gamification/read-article', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -1181,7 +1181,7 @@ app.post('/make-server-fe860986/gamification/read-article', async (c) => {
 });
 
 // Get leaderboard
-app.get('/make-server-fe860986/gamification/leaderboard', async (c) => {
+app.get('/gamification/leaderboard', async (c) => {
   try {
     const limit = parseInt(c.req.query('limit') || '10');
     const allUsers = await kv.getByPrefix('users:');
@@ -1211,7 +1211,7 @@ app.get('/make-server-fe860986/gamification/leaderboard', async (c) => {
 // ============================================
 
 // Get student stats
-app.get('/make-server-fe860986/dashboard/stats', async (c) => {
+app.get('/dashboard/stats', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -1238,7 +1238,7 @@ app.get('/make-server-fe860986/dashboard/stats', async (c) => {
 });
 
 // Get admin stats (admin only - can see everything)
-app.get('/make-server-fe860986/admin/stats', async (c) => {
+app.get('/admin/stats', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -1291,7 +1291,7 @@ app.get('/make-server-fe860986/admin/stats', async (c) => {
 });
 
 // Get all users (admin only)
-app.get('/make-server-fe860986/admin/users', async (c) => {
+app.get('/admin/users', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -1333,7 +1333,7 @@ app.get('/make-server-fe860986/admin/users', async (c) => {
 // ============================================
 
 // Get user profile
-app.get('/make-server-fe860986/profile/:userId', async (c) => {
+app.get('/profile/:userId', async (c) => {
   try {
     const userId = c.param('userId');
     const userData = await kv.get(`users:${userId}`);
@@ -1362,7 +1362,7 @@ app.get('/make-server-fe860986/profile/:userId', async (c) => {
 });
 
 // Update user profile (requires auth)
-app.put('/make-server-fe860986/profile', async (c) => {
+app.put('/profile', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -1432,7 +1432,7 @@ app.put('/make-server-fe860986/profile', async (c) => {
 });
 
 // Upload avatar (requires auth)
-app.post('/make-server-fe860986/profile/avatar', async (c) => {
+app.post('/profile/avatar', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) {
@@ -1470,7 +1470,7 @@ app.post('/make-server-fe860986/profile/avatar', async (c) => {
 // HEALTH CHECK
 // ============================================
 
-app.get('/make-server-fe860986/health', (c) => {
+app.get('/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
