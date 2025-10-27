@@ -137,17 +137,16 @@ export function LandingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <h1 className="text-4xl lg:text-6xl mb-6">
-                Transforme sua vida através da programação
+               PLATAFORMA EM CONSTRUÇÃO 🚧<br />
               </h1>
               <p className="text-xl lg:text-2xl mb-8 text-blue-100">
-                Aprenda a programar do zero, com propósito e fé em Cristo
-              </p>
+               Novidades em breve 🚀 Fique ligado ! </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <a
-                  href="/registro"
+                  href="#newsletter"
                   className="bg-white text-blue-600 px-8 py-4 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors"
                 >
-                  Começar Agora
+                  Quero me inscrever
                   <ArrowRight className="w-5 h-5" />
                 </a>
                 <a
@@ -373,7 +372,7 @@ export function LandingPage() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 bg-gray-50">
+     {/*  <section className="py-20 bg-gray-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl lg:text-4xl text-gray-900 mb-4">
@@ -410,10 +409,10 @@ export function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Newsletter Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-600 to-purple-600 text-white">
+      <section className="py-20 bg-gradient-to-br from-blue-600 to-purple-600 text-white" id='newsletter'>
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8">
             <h2 className="text-3xl lg:text-4xl mb-4">
@@ -424,7 +423,9 @@ export function LandingPage() {
               direto no seu email
             </p>
           </div>
-          <NewsletterForm origin="Landing Page" />
+          <NewsletterForm 
+          origin="Landing Page"
+          webhookUrl='https://webhook.bombatech.com.br/webhook/26ab5e91-8f13-428a-99bd-13440b4d79b3' />
         </div>
       </section>
     </div>

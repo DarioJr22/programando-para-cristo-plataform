@@ -1,14 +1,41 @@
 import React, { useState } from 'react';
-import { fetchAPI } from '../../lib/supabase';
 
 interface NewsletterFormProps {
   origin: string;
+  interesse?: string; // Permite especificar o tipo de interesse
+  webhookUrl?: string; // Permite customizar a URL do webhook
 }
 
-export function NewsletterForm({ origin }: NewsletterFormProps) {
-  const [formData, setFormData] = useState({
+interface FormData {
+  name: string;
+  email: string;
+  whatsapp: string;
+  optInWhatsApp: boolean;
+}
+
+interface WebhookPayload {
+  Nome: string;
+  Email: string;
+  WhatsApp?: string;
+  Origem: string;
+  Status: string;
+  "date:Data de Captação:start": string;
+  Interesse: string;
+  "Source URL": string;
+  "UTM Campaign": string;
+  "Opt-in Email": boolean;
+  "Opt-in WhatsApp": boolean;
+}
+
+export function NewsletterForm({ 
+  origin, 
+  interesse = 'Newsletter', 
+  webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || '' 
+}: NewsletterFormProps) {
+  const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
+    whatsapp: '',
     optInWhatsApp: false,
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -20,43 +47,62 @@ export function NewsletterForm({ origin }: NewsletterFormProps) {
     setIsLoading(true);
     setError('');
 
+    // Validação: Se opt-in WhatsApp marcado, número é obrigatório
+    if (formData.optInWhatsApp && !formData.whatsapp.trim()) {
+      setError('Por favor, preencha o WhatsApp para receber conteúdos neste canal.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      // Capture UTM parameters from URL
+      // Captura parâmetros UTM da URL
       const urlParams = new URLSearchParams(window.location.search);
-      const metadata = {
-        origin,
-        sourceUrl: window.location.href,
-        utmCampaign: urlParams.get('utm_campaign'),
-        utmSource: urlParams.get('utm_source'),
-        utmMedium: urlParams.get('utm_medium'),
-        utmContent: urlParams.get('utm_content'),
-        utmTerm: urlParams.get('utm_term'),
+      const currentDate = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+
+      // Monta o payload conforme especificado
+      const payload: WebhookPayload = {
+        "Nome": formData.name,
+        "Email": formData.email,
+        "Origem": origin,
+        "Status": "Novo",
+        "date:Data de Captação:start": currentDate,
+        "Interesse": interesse,
+        "Source URL": window.location.href,
+        "UTM Campaign": urlParams.get('utm_campaign') || '',
+        "Opt-in Email": true, // Sempre true pois é obrigatório para newsletter
+        "Opt-in WhatsApp": formData.optInWhatsApp
       };
 
-      const response = await fetchAPI('/newsletter/subscribe', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...formData,
-          metadata,
-        }),
-      });
+      // Adiciona WhatsApp ao payload apenas se fornecido
+      if (formData.whatsapp.trim()) {
+        payload.WhatsApp = formData.whatsapp.trim();
+      }
 
-      const data = await response.json();
+      // Envia para o webhook do n8n
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
 
       if (response.ok) {
         setSuccess(true);
         
-        // Track with GA4 if available
+        // Track com GA4 se disponível
         if (typeof (window as any).gtag !== 'undefined') {
           (window as any).gtag('event', 'newsletter_signup', {
             origin,
-            utm_campaign: metadata.utmCampaign,
+            interesse,
+            utm_campaign: urlParams.get('utm_campaign'),
           });
         }
       } else {
-        setError(data.error || 'Erro ao inscrever. Tente novamente.');
+        throw new Error('Erro na resposta do servidor');
       }
     } catch (err) {
+      console.error('Erro ao enviar para newsletter:', err);
       setError('Erro ao inscrever. Tente novamente.');
     } finally {
       setIsLoading(false);
@@ -69,7 +115,8 @@ export function NewsletterForm({ origin }: NewsletterFormProps) {
         <div className="text-6xl mb-4">✅</div>
         <h3 className="text-2xl mb-3">Inscrição confirmada!</h3>
         <p className="text-blue-100">
-          Você receberá conteúdos exclusivos no email cadastrado.
+          Você receberá conteúdos exclusivos no email cadastrado
+          {formData.optInWhatsApp && formData.whatsapp && ' e também no WhatsApp'}.
         </p>
       </div>
     );
@@ -82,7 +129,7 @@ export function NewsletterForm({ origin }: NewsletterFormProps) {
           type="text"
           placeholder="Seu nome"
           value={formData.name}
-          onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
           required
           minLength={2}
           disabled={isLoading}
@@ -95,11 +142,41 @@ export function NewsletterForm({ origin }: NewsletterFormProps) {
           type="email"
           placeholder="seu@email.com"
           value={formData.email}
-          onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
           required
           disabled={isLoading}
           className="w-full px-6 py-4 border-2 border-white/20 bg-white/10 backdrop-blur-sm rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50"
         />
+      </div>
+
+      <div>
+        <input
+          type="tel"
+          placeholder="(11) 99999-9999"
+          value={formData.whatsapp}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+            // Formatação básica do telefone
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length <= 11) {
+              value = value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+              value = value.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+              value = value.replace(/(\d{2})(\d{4})/, '($1) $2');
+              value = value.replace(/(\d{2})/, '($1');
+              setFormData((prev) => ({ ...prev, whatsapp: value }));
+            }
+          }}
+          disabled={isLoading}
+          className={`w-full px-6 py-4 border-2 bg-white/10 backdrop-blur-sm rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 disabled:opacity-50 ${
+            formData.optInWhatsApp 
+              ? 'border-yellow-300/50 focus:ring-yellow-300/50' 
+              : 'border-white/20 focus:ring-white/50'
+          }`}
+        />
+        {formData.optInWhatsApp && (
+          <p className="text-xs text-yellow-200 mt-1">
+            📱 WhatsApp obrigatório para receber conteúdos neste canal
+          </p>
+        )}
       </div>
 
       <div className="flex items-center gap-3">
@@ -107,12 +184,20 @@ export function NewsletterForm({ origin }: NewsletterFormProps) {
           type="checkbox"
           id="whatsapp-opt"
           checked={formData.optInWhatsApp}
-          onChange={(e) => setFormData((prev) => ({ ...prev, optInWhatsApp: e.target.checked }))}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+            setFormData((prev) => ({ ...prev, optInWhatsApp: e.target.checked }));
+            // Se desmarcou o checkbox, limpa o erro se existir
+            if (!e.target.checked && error.includes('WhatsApp')) {
+              setError('');
+            }
+          }}
           disabled={isLoading}
           className="w-5 h-5 rounded border-white/20 bg-white/10"
         />
         <label htmlFor="whatsapp-opt" className="text-sm text-blue-100 cursor-pointer">
-          Quero receber também por WhatsApp
+          Quero receber conteúdos também por WhatsApp 
+          {formData.optInWhatsApp && ' (obrigatório)'}
+          {!formData.optInWhatsApp && ' (opcional)'}
         </label>
       </div>
 
